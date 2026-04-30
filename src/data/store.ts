@@ -106,23 +106,26 @@ function persist() {
 }
 
 // ------ SUPABASE BOOTSTRAP ------
-// On module load, if Supabase is configured, try to fetch fresh data and update state.
 let _supabaseLoaded = false;
-export async function bootstrapFromSupabase() {
-  if (_supabaseLoaded) return;
+export async function bootstrapFromSupabase(): Promise<string | null> {
+  if (_supabaseLoaded) return null;
   _supabaseLoaded = true;
   try {
     const { isSupabaseConfigured } = await import("../lib/supabase");
-    if (!isSupabaseConfigured) return;
+    if (!isSupabaseConfigured) return null;
     const { fetchAll } = await import("./api");
     const data = await fetchAll();
     if (data && data.categories.length > 0) {
       state = data;
       try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
       listeners.forEach((l) => l());
+      return null; // success
     }
-  } catch (err) {
-    console.warn("Supabase bootstrap failed, using local data", err);
+    return "No se encontraron datos en Supabase. ¿Ejecutaste el SQL del Paso 2?";
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn("Supabase bootstrap failed:", msg);
+    return msg;
   }
 }
 
@@ -141,9 +144,21 @@ async function syncToSupabase(action: "saveService" | "deleteService" | "saveCat
     else if (action === "saveCategory") await api.upsertCategory(payload as Category);
     else if (action === "deleteCategory") await api.deleteCategoryRow(payload as string);
     else if (action === "saveMeta") await api.upsertMeta(payload as SiteMeta);
-  } catch (err) {
-    console.error("Supabase sync failed:", err);
-    alert("⚠️ Cambio guardado localmente, pero falló sincronización con Supabase. Revisa la consola.");
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("Supabase sync failed:", msg);
+    // Show specific error
+    if (msg.includes("does not exist") || msg.includes("relation")) {
+      alert("⚠️ Las tablas no existen en Supabase.\n\nVe a Admin → 🗄️ Supabase → Paso 2 y ejecuta el SQL para crear las tablas.");
+    } else if (msg.includes("policy") || msg.includes("permission") || msg.includes("RLS") || msg.includes("denied")) {
+      alert("⚠️ Sin permisos para escribir en Supabase.\n\nAsegúrate de haber ejecutado el SQL completo con las políticas RLS (Paso 2).");
+    } else if (msg.includes("Invalid API key") || msg.includes("apikey")) {
+      alert("⚠️ La API Key es inválida.\n\nVe a Admin → 🗄️ Supabase → Paso 4 y vuelve a conectar con la anon key correcta.");
+    } else if (msg.includes("JWT") || msg.includes("token") || msg.includes("auth")) {
+      alert("⚠️ Sesión expirada.\n\nCerrá sesión y volvé a iniciar sesión con tu email y contraseña.");
+    } else {
+      alert("⚠️ Error de sincronización con Supabase:\n\n" + msg + "\n\nEl cambio se guardó localmente.");
+    }
   }
 }
 

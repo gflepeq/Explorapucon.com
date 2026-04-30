@@ -119,6 +119,23 @@ export default function AdminSupabase() {
   const [step, setStep] = useState(1);
   const [seedMsg, setSeedMsg] = useState("");
   const [seeding, setSeeding] = useState(false);
+  const [testMsg, setTestMsg] = useState("");
+
+  const testConnection = async () => {
+    setTestMsg("Probando conexión...");
+    try {
+      const { fetchAll } = await import("../../data/api");
+      const data = await fetchAll();
+      if (data) {
+        setTestMsg(`✅ Conexión OK. ${data.categories.length} categorías, ${data.services.length} servicios encontrados.`);
+      } else {
+        setTestMsg("⚠️ Conexión OK, pero las tablas están vacías. Falta ejecutar el SQL (Paso 2) o subir datos.");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setTestMsg("❌ Error: " + msg);
+    }
+  };
 
   const copySQL = () => {
     navigator.clipboard.writeText(SQL);
@@ -187,7 +204,14 @@ export default function AdminSupabase() {
                 >
                   Desconectar
                 </button>
+                <button
+                  onClick={testConnection}
+                  className="rounded-lg bg-white text-blue-700 hover:bg-blue-50 font-semibold px-4 py-2 text-sm"
+                >
+                  🔍 Verificar conexión
+                </button>
               </div>
+              {testMsg && <div className="mt-3 text-sm bg-white/15 px-3 py-2 rounded-lg break-words">{testMsg}</div>}
               {seedMsg && <div className="mt-3 text-sm bg-white/15 px-3 py-2 rounded-lg">{seedMsg}</div>}
             </div>
           </div>
