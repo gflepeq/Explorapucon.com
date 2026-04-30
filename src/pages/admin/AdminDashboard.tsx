@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useStore } from "../../data/store";
+import { isSupabaseConfigured } from "../../lib/supabase";
 
 export default function AdminDashboard() {
   const { services, categories } = useStore();
@@ -9,9 +10,21 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-extrabold text-slate-900">Dashboard</h1>
-        <p className="text-slate-500 mt-1">Resumen general de tu plataforma</p>
+      <div className="mb-8 flex items-start justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold text-slate-900">Dashboard</h1>
+          <p className="text-slate-500 mt-1">Resumen general de tu plataforma</p>
+        </div>
+        {isSupabaseConfigured ? (
+          <Link to="/admin/supabase" className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-2 rounded-full text-sm font-semibold hover:bg-emerald-100">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            Conectado a Supabase
+          </Link>
+        ) : (
+          <Link to="/admin/supabase" className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2 rounded-full text-sm font-semibold hover:bg-amber-100">
+            ⚠️ Modo demo · Conectar Supabase →
+          </Link>
+        )}
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

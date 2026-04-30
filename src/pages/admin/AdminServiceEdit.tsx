@@ -59,11 +59,33 @@ export default function AdminServiceEdit() {
 
   const set = <K extends keyof Service>(k: K, v: Service[K]) => setForm((f) => ({ ...f, [k]: v }));
 
-  const handleImage = (e: React.ChangeEvent<HTMLInputElement>, field: "image" | "gallery") => {
+  const handleImage = async (e: React.ChangeEvent<HTMLInputElement>, field: "image" | "gallery") => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Try Supabase Storage first
+    try {
+      const { isSupabaseConfigured } = await import("../../lib/supabase");
+      if (isSupabaseConfigured) {
+        if (file.size > 5 * 1024 * 1024) {
+          alert("Imagen muy grande (máx 5MB).");
+          return;
+        }
+        const { uploadImage } = await import("../../data/api");
+        const publicUrl = await uploadImage(file, "services");
+        if (publicUrl) {
+          if (field === "image") set("image", publicUrl);
+          else set("gallery", [...(form.gallery || []), publicUrl]);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("Supabase upload failed, falling back to base64", err);
+    }
+
+    // Fallback: base64 in localStorage
     if (file.size > 1.5 * 1024 * 1024) {
-      alert("Imagen muy grande (máx 1.5MB). Usa una URL externa para imágenes pesadas.");
+      alert("Imagen muy grande (máx 1.5MB en modo demo). Conecta Supabase para subir imágenes hasta 5MB.");
       return;
     }
     const reader = new FileReader();

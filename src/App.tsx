@@ -16,6 +16,7 @@ import AdminServiceEdit from "./pages/admin/AdminServiceEdit";
 import AdminCategories from "./pages/admin/AdminCategories";
 import AdminSite from "./pages/admin/AdminSite";
 import AdminPublish from "./pages/admin/AdminPublish";
+import AdminSupabase from "./pages/admin/AdminSupabase";
 
 function PublicShell({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
@@ -54,6 +55,7 @@ export default function App() {
               <Route path="categorias" element={<AdminCategories />} />
               <Route path="sitio" element={<AdminSite />} />
               <Route path="publicar" element={<AdminPublish />} />
+              <Route path="supabase" element={<AdminSupabase />} />
             </Route>
 
             <Route path="*" element={<HomePage />} />

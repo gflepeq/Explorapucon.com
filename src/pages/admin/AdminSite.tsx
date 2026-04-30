@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useStore, StoreActions, Auth } from "../../data/store";
+import SiteLogo from "../../components/SiteLogo";
 
 export default function AdminSite() {
   const { meta } = useStore();
@@ -32,6 +33,83 @@ export default function AdminSite() {
       <h1 className="text-3xl font-extrabold text-slate-900 mb-6">Configuración del sitio</h1>
 
       <div className="grid lg:grid-cols-2 gap-6">
+        {/* LOGO */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+          <h2 className="font-bold text-slate-900 mb-4">Logotipo del sitio</h2>
+          <p className="text-xs text-slate-500 mb-4">Se muestra en el header, footer y login. Tamaño recomendado: 200×60px, PNG o SVG con fondo transparente.</p>
+
+          <div className="flex items-center gap-6 mb-4">
+            <div className="bg-slate-100 rounded-xl p-4 border">
+              <SiteLogo size="lg" />
+            </div>
+            <div className="bg-slate-900 rounded-xl p-4 border">
+              <SiteLogo size="lg" light />
+            </div>
+          </div>
+
+          {form.logo && (
+            <div className="mb-4 flex items-center gap-3">
+              <img src={form.logo} alt="Logo actual" className="h-12 object-contain" />
+              <button
+                type="button"
+                onClick={() => { const m = { ...form }; delete m.logo; setForm(m); }}
+                className="text-xs text-rose-500 font-semibold hover:underline"
+              >
+                Eliminar logo
+              </button>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1 block">URL del logo</label>
+              <input
+                value={form.logo || ""}
+                onChange={(e) => setForm({ ...form, logo: e.target.value || undefined })}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none text-sm"
+                placeholder="https://..."
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1 block">O subir archivo</label>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (file.size > 2 * 1024 * 1024) {
+                    alert("Máximo 2MB");
+                    return;
+                  }
+                  // Try Supabase Storage
+                  try {
+                    const { isSupabaseConfigured } = await import("../../lib/supabase");
+                    if (isSupabaseConfigured) {
+                      const { uploadImage } = await import("../../data/api");
+                      const url = await uploadImage(file, "logo");
+                      if (url) { setForm({ ...form, logo: url }); return; }
+                    }
+                  } catch {}
+                  // Fallback base64
+                  const reader = new FileReader();
+                  reader.onload = () => setForm({ ...form, logo: reader.result as string });
+                  reader.readAsDataURL(file);
+                }}
+                className="text-xs"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">PNG, SVG, JPG o WebP. Máximo 2MB.</p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => { StoreActions.saveMeta(form); alert("✓ Logo guardado"); }}
+            className="mt-4 w-full rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 shadow-lg shadow-emerald-500/30"
+          >
+            Guardar logo
+          </button>
+        </div>
+
         <form onSubmit={save} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
           <h2 className="font-bold text-slate-900 mb-4">Información general</h2>
           <div className="space-y-4">

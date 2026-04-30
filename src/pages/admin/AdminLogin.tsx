@@ -1,32 +1,49 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Auth } from "../../data/store";
+import { isSupabaseConfigured, getSupabaseUrl, clearSupabaseCredentials } from "../../lib/supabase";
+import SiteLogo from "../../components/SiteLogo";
 
 export default function AdminLogin() {
+  const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const nav = useNavigate();
 
-  // If already logged in, go directly to dashboard
   useEffect(() => {
-    if (Auth.isLoggedIn()) {
-      nav("/admin", { replace: true });
-    }
+    if (Auth.isLoggedIn()) nav("/admin", { replace: true });
   }, [nav]);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (Auth.login(pwd)) {
-      nav("/admin", { replace: true });
-    } else {
-      setError("Contraseña incorrecta. La contraseña por defecto es: admin123");
+    setLoading(true);
+    try {
+      // If Supabase is configured, require email + password
+      // If not, use demo password (pwd field only)
+      const result = isSupabaseConfigured
+        ? await Auth.loginAsync(email, pwd)
+        : await Auth.loginAsync(pwd);
+      if (result.ok) {
+        nav("/admin", { replace: true });
+      } else {
+        setError(result.error || "Credenciales incorrectas");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   const fillDemo = () => {
     setPwd("admin123");
     setError("");
+  };
+
+  const disconnect = () => {
+    if (confirm("¿Desconectar Supabase y volver al modo demo?")) {
+      clearSupabaseCredentials();
+    }
   };
 
   return (
@@ -43,20 +60,64 @@ export default function AdminLogin() {
           </Link>
           <h1 className="text-3xl font-extrabold">ExploraPucón Admin</h1>
           <p className="text-emerald-200 mt-1">Panel de administración</p>
+          {isSupabaseConfigured && (
+            <div className="mt-3 inline-flex items-center gap-2 text-[11px] bg-green-500/30 backdrop-blur border border-green-300/40 text-green-100 px-3 py-1 rounded-full font-semibold">
+              <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
+              Conectado a Supabase
+            </div>
+          )}
         </div>
 
         <form onSubmit={submit} className="bg-white rounded-2xl p-8 shadow-2xl">
-          <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Contraseña
-          </label>
-          <input
-            type="password"
-            value={pwd}
-            onChange={(e) => setPwd(e.target.value)}
-            autoFocus
-            placeholder="Ingresa tu contraseña"
-            className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none"
-          />
+          {isSupabaseConfigured ? (
+            /* ====== SUPABASE LOGIN (email + password) ====== */
+            <>
+              <div className="mb-4">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Email del admin
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoFocus
+                  required
+                  placeholder="admin@explorapucon.com"
+                  className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Contraseña
+                </label>
+                <input
+                  type="password"
+                  value={pwd}
+                  onChange={(e) => setPwd(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none"
+                />
+              </div>
+            </>
+          ) : (
+            /* ====== DEMO LOGIN (password only) ====== */
+            <>
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Contraseña
+              </label>
+              <input
+                type="password"
+                value={pwd}
+                onChange={(e) => setPwd(e.target.value)}
+                autoFocus
+                required
+                placeholder="••••••••"
+                className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none"
+              />
+            </>
+          )}
+
           {error && (
             <div className="mt-3 px-3 py-2 rounded-lg bg-rose-50 border border-rose-200 text-sm text-rose-700">
               {error}
@@ -65,26 +126,56 @@ export default function AdminLogin() {
 
           <button
             type="submit"
-            className="mt-5 w-full rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 transition shadow-lg shadow-emerald-500/30"
+            disabled={loading}
+            className="mt-5 w-full rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 transition shadow-lg shadow-emerald-500/30 disabled:opacity-60"
           >
-            Entrar al panel
+            {loading ? "Iniciando..." : "Entrar al panel"}
           </button>
 
-          <div className="mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-center">
-            <div className="text-xs text-emerald-700 font-semibold uppercase tracking-wider mb-1">
-              🔑 Modo Demo
+          {/* Supabase connected info */}
+          {isSupabaseConfigured ? (
+            <div className="mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-center">
+              <div className="text-xs text-emerald-700 font-semibold uppercase tracking-wider mb-1">
+                🔒 Modo Supabase (CMS real)
+              </div>
+              <p className="text-xs text-emerald-600">
+                Ingresa el email y contraseña del usuario admin creado en Supabase Authentication.
+              </p>
+              <p className="text-[10px] text-emerald-500 mt-2 break-all">
+                Proyecto: {getSupabaseUrl()}
+              </p>
+              <button
+                type="button"
+                onClick={disconnect}
+                className="mt-3 text-xs text-rose-500 hover:text-rose-700 font-semibold underline"
+              >
+                ⚠️ Desconectar Supabase y volver a modo demo
+              </button>
             </div>
-            <div className="text-sm text-emerald-900">
-              Contraseña: <code className="bg-white px-2 py-0.5 rounded font-bold">admin123</code>
+          ) : (
+            <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-center">
+              <div className="text-xs text-amber-700 font-semibold uppercase tracking-wider mb-1">
+                ⚠️ Modo Demo · Sin Supabase
+              </div>
+              <div className="text-sm text-amber-900">
+                Contraseña: <code className="bg-white px-2 py-0.5 rounded font-bold">admin123</code>
+              </div>
+              <button
+                type="button"
+                onClick={fillDemo}
+                className="mt-2 text-xs text-amber-700 hover:text-amber-900 font-semibold underline"
+              >
+                Click para auto-completar
+              </button>
+              <Link
+                to="/admin/supabase"
+                onClick={() => { Auth.login("admin123"); }}
+                className="mt-3 block text-xs text-emerald-600 hover:text-emerald-700 font-semibold underline"
+              >
+                ⚡ Configurar Supabase (CMS multi-usuario)
+              </Link>
             </div>
-            <button
-              type="button"
-              onClick={fillDemo}
-              className="mt-2 text-xs text-emerald-600 hover:text-emerald-700 font-semibold underline"
-            >
-              Click para auto-completar
-            </button>
-          </div>
+          )}
         </form>
 
         <div className="mt-6 text-center">

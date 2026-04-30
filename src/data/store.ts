@@ -58,6 +58,8 @@ export type SiteMeta = {
   email: string;
   address: string;
   whatsapp: string;
+  logo?: string; // URL of the logo image
+  logoDark?: string; // URL of the logo for dark backgrounds (optional)
 };
 
 export type StoreData = {
@@ -101,6 +103,48 @@ function persist() {
     console.warn("localStorage full, could not persist", e);
   }
   listeners.forEach((l) => l());
+}
+
+// ------ SUPABASE BOOTSTRAP ------
+// On module load, if Supabase is configured, try to fetch fresh data and update state.
+let _supabaseLoaded = false;
+export async function bootstrapFromSupabase() {
+  if (_supabaseLoaded) return;
+  _supabaseLoaded = true;
+  try {
+    const { isSupabaseConfigured } = await import("../lib/supabase");
+    if (!isSupabaseConfigured) return;
+    const { fetchAll } = await import("./api");
+    const data = await fetchAll();
+    if (data && data.categories.length > 0) {
+      state = data;
+      try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
+      listeners.forEach((l) => l());
+    }
+  } catch (err) {
+    console.warn("Supabase bootstrap failed, using local data", err);
+  }
+}
+
+// Trigger automatically in browser
+if (typeof window !== "undefined") {
+  setTimeout(() => { void bootstrapFromSupabase(); }, 0);
+}
+
+async function syncToSupabase(action: "saveService" | "deleteService" | "saveCategory" | "deleteCategory" | "saveMeta", payload: unknown) {
+  try {
+    const { isSupabaseConfigured } = await import("../lib/supabase");
+    if (!isSupabaseConfigured) return;
+    const api = await import("./api");
+    if (action === "saveService") await api.upsertService(payload as Service);
+    else if (action === "deleteService") await api.deleteServiceRow(payload as string);
+    else if (action === "saveCategory") await api.upsertCategory(payload as Category);
+    else if (action === "deleteCategory") await api.deleteCategoryRow(payload as string);
+    else if (action === "saveMeta") await api.upsertMeta(payload as SiteMeta);
+  } catch (err) {
+    console.error("Supabase sync failed:", err);
+    alert("⚠️ Cambio guardado localmente, pero falló sincronización con Supabase. Revisa la consola.");
+  }
 }
 
 function subscribe(l: () => void) {
@@ -156,11 +200,13 @@ export const StoreActions = {
     }
     StoreActions.recountCategories();
     persist();
+    void syncToSupabase("saveService", service);
   },
   deleteService(slug: string) {
     state = { ...state, services: state.services.filter((s) => s.slug !== slug) };
     StoreActions.recountCategories();
     persist();
+    void syncToSupabase("deleteService", slug);
   },
   saveCategory(category: Category) {
     const idx = state.categories.findIndex((c) => c.slug === category.slug);
@@ -170,6 +216,7 @@ export const StoreActions = {
       state = { ...state, categories: [...state.categories, category] };
     }
     persist();
+    void syncToSupabase("saveCategory", category);
   },
   deleteCategory(slug: string) {
     state = {
@@ -178,6 +225,7 @@ export const StoreActions = {
       services: state.services.filter((s) => s.category !== slug),
     };
     persist();
+    void syncToSupabase("deleteCategory", slug);
   },
   recountCategories() {
     state = {
@@ -191,6 +239,7 @@ export const StoreActions = {
   saveMeta(meta: SiteMeta) {
     state = { ...state, meta };
     persist();
+    void syncToSupabase("saveMeta", meta);
   },
   resetToSeed() {
     state = JSON.parse(JSON.stringify(SEED));
@@ -225,6 +274,7 @@ export const Auth = {
   getPassword(): string {
     return localStorage.getItem("explorapucon_admin_pwd") || "admin123";
   },
+  // Sync legacy login (demo password)
   login(password: string): boolean {
     if (password === this.getPassword()) {
       localStorage.setItem(AUTH_KEY, "1");
@@ -232,7 +282,37 @@ export const Auth = {
     }
     return false;
   },
-  logout() {
+  // Async login: tries Supabase first if configured, falls back to demo password
+  async loginAsync(emailOrPwd: string, password?: string): Promise<{ ok: boolean; error?: string }> {
+    try {
+      const { isSupabaseConfigured } = await import("../lib/supabase");
+      if (isSupabaseConfigured && password) {
+        try {
+          const { signIn } = await import("./api");
+          await signIn(emailOrPwd, password);
+          localStorage.setItem(AUTH_KEY, "1");
+          return { ok: true };
+        } catch (authErr: unknown) {
+          // Supabase auth failed — fall through to demo password check
+          const msg = authErr instanceof Error ? authErr.message : String(authErr);
+          console.warn("Supabase auth failed, trying demo fallback:", msg);
+          // If it's a clear "Invalid API key" or network error, offer demo fallback
+        }
+      }
+    } catch {}
+    // Fallback: demo password
+    const pwd = password || emailOrPwd;
+    if (pwd === this.getPassword()) {
+      localStorage.setItem(AUTH_KEY, "1");
+      return { ok: true };
+    }
+    return { ok: false, error: "Credenciales incorrectas" };
+  },
+  async logout() {
+    try {
+      const { signOut } = await import("./api");
+      await signOut();
+    } catch {}
     localStorage.removeItem(AUTH_KEY);
   },
   changePassword(oldP: string, newP: string): boolean {
