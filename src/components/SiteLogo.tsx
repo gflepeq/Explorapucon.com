@@ -1,50 +1,55 @@
+import { Link } from "react-router-dom";
 import { useMeta } from "../data/store";
 
 type Props = {
-  size?: "sm" | "md" | "lg";
+  variant?: "header-transparent" | "header-solid" | "footer";
   className?: string;
-  light?: boolean; // white text for dark backgrounds
 };
 
-export default function SiteLogo({ size = "md", className = "", light = false }: Props) {
-  const { logo } = useMeta();
+export default function SiteLogo({ variant = "header-solid", className = "" }: Props) {
+  const meta = useMeta();
+  const isTransparent = variant === "header-transparent";
+  const isFooter = variant === "footer";
 
-  const sizes = { sm: "h-8", md: "h-10", lg: "h-16" };
-
-  // If a logo image is configured, use it
-  if (logo) {
+  if (meta.logo) {
+    // Custom logo uploaded by admin
     return (
-      <img
-        src={logo}
-        alt="ExploraPucón"
-        className={`${sizes[size]} w-auto object-contain ${className}`}
-      />
+      <Link to="/" className={`flex items-center ${className}`}>
+        <img
+          src={meta.logo}
+          alt={meta.siteName || "ExploraPucón"}
+          style={{ width: meta.logoWidth || 140, height: "auto" }}
+          className={`object-contain max-h-12 ${isTransparent ? "brightness-0 invert" : ""}`}
+        />
+      </Link>
     );
   }
 
-  // Default: icon + text
-  const iconSize = size === "lg" ? "h-14 w-14 rounded-2xl" : size === "sm" ? "h-8 w-8 rounded-lg" : "h-10 w-10 rounded-xl";
-  const iconSvg = size === "lg" ? "h-8 w-8" : size === "sm" ? "h-4 w-4" : "h-6 w-6";
-  const titleSize = size === "lg" ? "text-2xl" : size === "sm" ? "text-sm" : "text-lg";
-
+  // Default text logo
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      <div className={`${iconSize} bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center shadow-lg flex-shrink-0`}>
-        <svg viewBox="0 0 24 24" fill="none" className={`${iconSvg} text-white`} stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+    <Link to="/" className={`flex items-center gap-2 group ${className}`}>
+      <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center shadow-lg flex-shrink-0">
+        <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-white" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
           <path d="M3 20l5-9 4 6 3-4 6 7z" />
           <circle cx="17" cy="7" r="2" />
         </svg>
       </div>
-      {size !== "sm" && (
-        <div className="leading-tight">
-          <div className={`font-extrabold tracking-tight ${titleSize} ${light ? "text-white" : "text-emerald-800"}`}>
-            Explora<span className="text-emerald-400">Pucón</span>
-          </div>
-          <div className={`text-[10px] uppercase tracking-[0.2em] ${light ? "text-white/80" : "text-slate-500"}`}>
-            Aventura · Naturaleza
-          </div>
+      <div className="leading-tight">
+        <div className={`font-extrabold text-lg tracking-tight ${isFooter ? "text-white" : isTransparent ? "text-white" : "text-emerald-800"}`}>
+          {meta.siteName
+            ? <>
+                <span>{meta.siteName.replace(/pucon|pucón/i, "")}</span>
+                <span className="text-emerald-400">{meta.siteName.match(/pucon|pucón/i)?.[0] || ""}</span>
+              </>
+            : <>Explora<span className="text-emerald-400">Pucón</span></>
+          }
         </div>
-      )}
-    </div>
+        {meta.tagline && (
+          <div className={`text-[10px] uppercase tracking-[0.2em] ${isFooter ? "text-slate-400" : isTransparent ? "text-white/80" : "text-slate-500"}`}>
+            {meta.tagline}
+          </div>
+        )}
+      </div>
+    </Link>
   );
 }

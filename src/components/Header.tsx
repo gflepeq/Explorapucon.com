@@ -16,7 +16,7 @@ export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
-  const isAdmin = pathname.startsWith("/admin");
+  const isHome = pathname === "/";
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 30);
@@ -25,9 +25,8 @@ export default function Header() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  if (isAdmin) return null;
-
-  const solid = scrolled;
+  // Force solid background on non-home pages
+  const solid = scrolled || !isHome;
 
   return (
     <header
@@ -38,9 +37,7 @@ export default function Header() {
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
-        <Link to="/" className="flex items-center group">
-          <SiteLogo light={!solid} />
-        </Link>
+        <SiteLogo variant={solid ? "header-solid" : "header-transparent"} />
 
         <nav className="hidden lg:flex items-center gap-7">
           {navLinks.map((l) => (

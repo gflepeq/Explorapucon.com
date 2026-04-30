@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import SiteLogo from "./SiteLogo";
+// Link is used in nav sections below
 
 export default function Footer() {
   return (
@@ -7,9 +8,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-10 pb-10 border-b border-slate-800">
           <div>
-            <Link to="/" className="inline-block mb-4">
-              <SiteLogo light size="md" />
-            </Link>
+            <SiteLogo variant="footer" className="mb-4" />
             <p className="text-sm leading-relaxed">
               Plataforma oficial de turismo de Pucón. Conectamos viajeros con +450
               prestadores certificados de la Araucanía.
@@ -63,12 +62,7 @@ export default function Footer() {
 
         <div className="pt-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs">
           <div>© {new Date().getFullYear()} ExploraPucón.com — Todos los derechos reservados.</div>
-          <div className="flex items-center gap-4">
-            <Link to="/admin/login" className="hover:text-emerald-400 inline-flex items-center gap-1">
-              🔐 Admin
-            </Link>
-            <span>Hecho con 🌋 en Pucón, Chile</span>
-          </div>
+          <div>Hecho con 🌋 en Pucón, Chile</div>
         </div>
       </div>
     </footer>
