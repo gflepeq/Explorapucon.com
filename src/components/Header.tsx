@@ -9,14 +9,13 @@ const navLinks = [
   { label: "Tours", to: "/categoria/tours" },
   { label: "Transfer", to: "/categoria/transfer" },
   { label: "Nieve", to: "/categoria/nieve" },
-  { label: "Contacto", to: "/contacto" },
 ];
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
-  const isHome = pathname === "/";
+  const isAdmin = pathname.startsWith("/admin");
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 30);
@@ -25,8 +24,9 @@ export default function Header() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Force solid background on non-home pages
-  const solid = scrolled || !isHome;
+  if (isAdmin) return null;
+
+  const solid = scrolled;
 
   return (
     <header
@@ -37,7 +37,9 @@ export default function Header() {
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
-        <SiteLogo variant={solid ? "header-solid" : "header-transparent"} />
+        <Link to="/" className="flex items-center group">
+          <SiteLogo light={!solid} />
+        </Link>
 
         <nav className="hidden lg:flex items-center gap-7">
           {navLinks.map((l) => (
@@ -55,7 +57,7 @@ export default function Header() {
             to="/contacto"
             className="rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold px-5 py-2.5 shadow-lg shadow-emerald-500/30 transition"
           >
-            Reservar
+            Contacto
           </Link>
         </nav>
 
@@ -92,7 +94,7 @@ export default function Header() {
               onClick={() => setOpen(false)}
               className="mt-2 rounded-full bg-emerald-500 text-white text-center font-semibold px-5 py-2.5"
             >
-              Reservar
+              Contacto
             </Link>
           </div>
         </div>

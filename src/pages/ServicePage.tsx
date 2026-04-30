@@ -26,14 +26,6 @@ export default function ServicePage() {
   const gallery = service.gallery && service.gallery.length > 0 ? service.gallery : [service.image];
   const waMessage = `Hola, me interesa el servicio "${service.name}" que vi en ExploraPucón.com. ¿Podrían darme más información?`;
 
-  const scrollTo = (id: string) => {
-    const el = document.getElementById(id);
-    if (el) {
-      const top = el.getBoundingClientRect().top + window.scrollY - 100;
-      window.scrollTo({ top, behavior: "smooth" });
-    }
-  };
-
   return (
     <div className="pt-20 bg-slate-50 min-h-screen">
       {/* Breadcrumb */}
@@ -91,15 +83,12 @@ export default function ServicePage() {
                   {service.name}
                 </h1>
                 {service.agency && (
-                  <button
-                    onClick={() => scrollTo("agency")}
-                    className="mt-3 inline-flex items-center gap-2 group cursor-pointer"
-                  >
+                  <a href="#agency" className="mt-3 inline-flex items-center gap-2 group">
                     <AgencyLogo agency={service.agency} size={28} />
                     <span className="text-xs text-slate-500">
                       Operado por <span className="font-bold text-slate-700 group-hover:text-emerald-600 transition">{service.agency.name}</span>
                     </span>
-                  </button>
+                  </a>
                 )}
                 <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
                   <span className="inline-flex items-center gap-1">
@@ -190,13 +179,13 @@ export default function ServicePage() {
           )}
 
           {/* Contact form */}
-          <div id="contact-form" className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-100">
+          <div id="form" className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-100">
             <h2 className="text-xl font-bold text-slate-900">Solicitar información</h2>
             <p className="text-sm text-slate-500 mt-1">
               Completa el formulario y te contactaremos por WhatsApp en menos de 1 hora.
             </p>
             <div className="mt-6">
-              <ContactForm serviceName={service.name} category={category.name} phone={service.phone} />
+              <ContactForm serviceName={service.name} phone={service.phone} />
             </div>
           </div>
         </div>
@@ -219,7 +208,7 @@ export default function ServicePage() {
               </WhatsAppButton>
 
               <button
-                onClick={() => scrollTo("contact-form")}
+                onClick={() => document.getElementById("form")?.scrollIntoView({ behavior: "smooth", block: "start" })}
                 className="mt-3 w-full inline-flex items-center justify-center rounded-full border-2 border-slate-200 hover:border-emerald-500 hover:text-emerald-600 text-slate-700 font-semibold px-5 py-3 text-sm transition"
               >
                 Enviar formulario ↓

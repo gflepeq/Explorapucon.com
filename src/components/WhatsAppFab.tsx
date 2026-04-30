@@ -1,7 +1,13 @@
+import { useMeta } from "../data/store";
+
 export default function WhatsAppFab() {
+  const { whatsapp, phone } = useMeta();
+  const wa = whatsapp || (phone ? phone.replace(/\D/g, "") : "56912345678");
+  const msg = encodeURIComponent("Hola, vi ExploraPucón.com y me gustaría más información.");
+
   return (
     <a
-      href="https://wa.me/56912345678"
+      href={`https://wa.me/${wa}?text=${msg}`}
       target="_blank"
       rel="noopener noreferrer"
       className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-green-500 hover:bg-green-600 flex items-center justify-center shadow-2xl shadow-green-500/50 hover:scale-110 transition"

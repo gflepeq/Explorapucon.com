@@ -58,9 +58,8 @@ export type SiteMeta = {
   email: string;
   address: string;
   whatsapp: string;
-  logo?: string;        // URL or base64
-  logoWidth?: number;   // px, default 140
-  favicon?: string;     // URL or base64
+  logo?: string; // URL of the logo image
+  logoDark?: string; // URL of the logo for dark backgrounds (optional)
 };
 
 export type StoreData = {
@@ -107,23 +106,26 @@ function persist() {
 }
 
 // ------ SUPABASE BOOTSTRAP ------
-// On module load, if Supabase is configured, try to fetch fresh data and update state.
 let _supabaseLoaded = false;
-export async function bootstrapFromSupabase() {
-  if (_supabaseLoaded) return;
+export async function bootstrapFromSupabase(): Promise<string | null> {
+  if (_supabaseLoaded) return null;
   _supabaseLoaded = true;
   try {
     const { isSupabaseConfigured } = await import("../lib/supabase");
-    if (!isSupabaseConfigured) return;
+    if (!isSupabaseConfigured) return null;
     const { fetchAll } = await import("./api");
     const data = await fetchAll();
     if (data && data.categories.length > 0) {
       state = data;
       try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
       listeners.forEach((l) => l());
+      return null; // success
     }
-  } catch (err) {
-    console.warn("Supabase bootstrap failed, using local data", err);
+    return "No se encontraron datos en Supabase. ¿Ejecutaste el SQL del Paso 2?";
+  } catch (err: unknown) {
+    const msg = extractErr(err);
+    console.warn("Supabase bootstrap failed:", msg);
+    return msg;
   }
 }
 
@@ -132,79 +134,46 @@ if (typeof window !== "undefined") {
   setTimeout(() => { void bootstrapFromSupabase(); }, 0);
 }
 
-// ── Extrae texto legible de CUALQUIER tipo de error ──────────────
-function extractError(err: unknown): { code: string; msg: string; full: string } {
-  if (!err) return { code: "UNKNOWN", msg: "Error desconocido", full: "" };
-
-  // Already classified ApiError
-  const e = err as Record<string, unknown>;
-  const code = (e.code as string) || "UNKNOWN";
-
-  // Build readable message from all possible fields
-  const parts: string[] = [];
-  if (e.message)  parts.push(String(e.message));
-  if (e.details)  parts.push(`Detalle: ${e.details}`);
-  if (e.hint)     parts.push(`Hint: ${e.hint}`);
-  if (e.raw) {
-    const raw = e.raw as Record<string, unknown>;
-    if (raw.message) parts.push(`Raw: ${raw.message}`);
-    if (raw.code)    parts.push(`Code: ${raw.code}`);
+// Supabase errors are nested objects: {message, code, details, hint} or PostgrestError
+function extractErr(err: unknown): string {
+  if (!err) return "Error desconocido";
+  if (typeof err === "string") return err;
+  if (err instanceof Error) return err.message;
+  const o = err as Record<string, unknown>;
+  // Supabase/Postgrest: error.message or error.error_description or error.msg
+  if (typeof o.message === "string" && o.message) return o.message;
+  if (typeof o.error_description === "string") return o.error_description;
+  if (typeof o.msg === "string") return o.msg;
+  if (typeof o.error === "string") return o.error;
+  // Deep inspect
+  if (o.error && typeof o.error === "object") {
+    const inner = o.error as Record<string, unknown>;
+    if (typeof inner.message === "string") return inner.message;
   }
-
-  // Fallback to JSON
-  let full = parts.join(" | ");
-  if (!full || full.includes("[object")) {
-    try { full = JSON.stringify(err, null, 2); }
-    catch { full = String(err); }
-  }
-
-  const msg = parts[0] || full.slice(0, 200) || "Error desconocido";
-  return { code, msg, full };
+  try { return JSON.stringify(err, null, 2); } catch { return "Error desconocido"; }
 }
 
-async function syncToSupabase(
-  action: "saveService" | "deleteService" | "saveCategory" | "deleteCategory" | "saveMeta",
-  payload: unknown
-) {
+async function syncToSupabase(action: "saveService" | "deleteService" | "saveCategory" | "deleteCategory" | "saveMeta", payload: unknown) {
   try {
     const { isSupabaseConfigured } = await import("../lib/supabase");
     if (!isSupabaseConfigured) return;
     const api = await import("./api");
-    if (action === "saveService")        await api.upsertService(payload as Service);
+    if (action === "saveService") await api.upsertService(payload as Service);
     else if (action === "deleteService") await api.deleteServiceRow(payload as string);
-    else if (action === "saveCategory")  await api.upsertCategory(payload as Category);
+    else if (action === "saveCategory") await api.upsertCategory(payload as Category);
     else if (action === "deleteCategory") await api.deleteCategoryRow(payload as string);
-    else if (action === "saveMeta")      await api.upsertMeta(payload as SiteMeta);
+    else if (action === "saveMeta") await api.upsertMeta(payload as SiteMeta);
   } catch (err: unknown) {
-    const { code, msg, full } = extractError(err);
-    console.error("[Supabase sync error]", { code, msg, full, raw: err });
-
-    if (code === "NO_TABLES" || msg.toLowerCase().includes("does not exist")) {
-      const go = confirm(
-        "⚠️ Las tablas no existen en Supabase.\n\n" +
-        "Necesitas ejecutar el SQL de configuración.\n\n" +
-        "¿Ir al panel Supabase ahora?"
-      );
-      if (go) window.location.hash = "#/admin/supabase";
-
-    } else if (code === "RLS" || msg.toLowerCase().includes("row-level security") || msg.toLowerCase().includes("policy")) {
-      const go = confirm(
-        "⚠️ Sin permisos de escritura (RLS).\n\n" +
-        "Necesitas desactivar RLS en las tablas o verificar tu sesión.\n\n" +
-        "¿Ir al diagnóstico ahora?"
-      );
-      if (go) window.location.hash = "#/admin/supabase";
-
-    } else if (code === "AUTH" || msg.toLowerCase().includes("jwt") || msg.toLowerCase().includes("auth")) {
-      const go = confirm("⚠️ Sesión expirada. ¿Iniciar sesión nuevamente?");
-      if (go) window.location.hash = "#/admin/login";
-
+    const msg = extractErr(err);
+    console.error("Supabase sync failed:", msg, err);
+    if (msg.includes("does not exist") || msg.includes("relation")) {
+      alert("⚠️ Las tablas no existen en Supabase.\n\nVe a Admin → 🗄️ Supabase → Paso 2 y ejecuta el SQL para crear las tablas.");
+    } else if (msg.includes("policy") || msg.includes("permission") || msg.includes("new row violates")) {
+      alert("⚠️ Sin permisos para escribir.\n\nRe-ejecutá el SQL completo del Paso 2 en Supabase (borra y pega todo de nuevo).");
+    } else if (msg.includes("Invalid") || msg.includes("apikey") || msg.includes("Invalid login credentials")) {
+      alert("⚠️ " + msg + "\n\nCerrá sesión y volvé a entrar, o reconectá las credenciales.");
     } else {
-      alert(
-        "⚠️ Cambio guardado localmente, pero falló en Supabase.\n\n" +
-        `Error: ${msg}\n\n` +
-        "Ve a Admin → 🗄️ Supabase → Ejecutar diagnóstico para más info."
-      );
+      alert("⚠️ Error Supabase:\n\n" + msg + "\n\nCambio guardado localmente.");
     }
   }
 }
@@ -329,43 +298,14 @@ export const StoreActions = {
 
 // ------ AUTH ------
 export const Auth = {
-  // Check both localStorage flag AND Supabase session key
   isLoggedIn(): boolean {
     if (typeof window === "undefined") return false;
-    // Demo mode flag
-    if (localStorage.getItem(AUTH_KEY) === "1") return true;
-    // Supabase persists session under this key (set in createClient storageKey)
-    const sbKey = "explorapucon_auth";
-    try {
-      const raw = localStorage.getItem(sbKey);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        // Supabase stores { access_token, expires_at, ... }
-        if (parsed?.access_token) {
-          const exp = parsed.expires_at as number | undefined;
-          if (!exp || exp * 1000 > Date.now()) {
-            // Valid session: mirror to our flag so sync reads work
-            localStorage.setItem(AUTH_KEY, "1");
-            return true;
-          }
-        }
-      }
-      // Also check the newer Supabase v2 storage format
-      const sbKeyV2 = `sb-djaahxxvfwnfzrhtdfce-auth-token`;
-      const rawV2 = localStorage.getItem(sbKeyV2);
-      if (rawV2) {
-        const parsedV2 = JSON.parse(rawV2);
-        if (parsedV2?.access_token || parsedV2?.session?.access_token) {
-          localStorage.setItem(AUTH_KEY, "1");
-          return true;
-        }
-      }
-    } catch {}
-    return false;
+    return localStorage.getItem(AUTH_KEY) === "1";
   },
   getPassword(): string {
     return localStorage.getItem("explorapucon_admin_pwd") || "admin123";
   },
+  // Sync legacy login (demo password)
   login(password: string): boolean {
     if (password === this.getPassword()) {
       localStorage.setItem(AUTH_KEY, "1");
@@ -373,19 +313,25 @@ export const Auth = {
     }
     return false;
   },
+  // Async login: tries Supabase first if configured, falls back to demo password
   async loginAsync(emailOrPwd: string, password?: string): Promise<{ ok: boolean; error?: string }> {
     try {
       const { isSupabaseConfigured } = await import("../lib/supabase");
       if (isSupabaseConfigured && password) {
-        const { signIn } = await import("./api");
-        await signIn(emailOrPwd, password);
-        localStorage.setItem(AUTH_KEY, "1");
-        return { ok: true };
+        try {
+          const { signIn } = await import("./api");
+          await signIn(emailOrPwd, password);
+          localStorage.setItem(AUTH_KEY, "1");
+          return { ok: true };
+        } catch (authErr: unknown) {
+          // Supabase auth failed — fall through to demo password check
+          const msg = authErr instanceof Error ? authErr.message : String(authErr);
+          console.warn("Supabase auth failed, trying demo fallback:", msg);
+          // If it's a clear "Invalid API key" or network error, offer demo fallback
+        }
       }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Error de autenticación";
-      return { ok: false, error: message };
-    }
+    } catch {}
+    // Fallback: demo password
     const pwd = password || emailOrPwd;
     if (pwd === this.getPassword()) {
       localStorage.setItem(AUTH_KEY, "1");

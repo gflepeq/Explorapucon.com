@@ -1,14 +1,16 @@
-import { Link } from "react-router-dom";
+import { useMeta } from "../data/store";
 import ContactForm from "../components/ContactForm";
 import WhatsAppButton from "../components/WhatsAppButton";
 
 export default function ContactPage() {
-  const phone = "56912345678";
+  const { phone, email, address, whatsapp } = useMeta();
+  const wa = whatsapp || (phone ? phone.replace(/\D/g, "") : "");
+
   return (
     <div className="pt-28 pb-20 bg-gradient-to-b from-white to-slate-50 min-h-screen">
       <div className="max-w-6xl mx-auto px-6">
         <nav className="text-xs text-slate-500 mb-4">
-          <Link to="/" className="hover:text-emerald-600">Inicio</Link>
+          <a href="/#/" className="hover:text-emerald-600">Inicio</a>
           <span className="mx-2">/</span>
           <span className="text-slate-900">Contacto</span>
         </nav>
@@ -20,19 +22,27 @@ export default function ContactPage() {
             <p className="mt-4 text-emerald-50">Te respondemos en menos de 24 horas. Para consultas urgentes, contáctanos directo por WhatsApp.</p>
 
             <div className="mt-8 space-y-4 text-sm">
-              <div className="flex items-center gap-3"><span className="text-xl">📞</span> +56 9 1234 5678</div>
-              <div className="flex items-center gap-3"><span className="text-xl">✉️</span> contacto@explorapucon.com</div>
-              <div className="flex items-center gap-3"><span className="text-xl">📍</span> Av. O'Higgins 211, Pucón</div>
+              {phone && (
+                <div className="flex items-center gap-3"><span className="text-xl">📞</span> {phone}</div>
+              )}
+              {email && (
+                <div className="flex items-center gap-3"><span className="text-xl">✉️</span> {email}</div>
+              )}
+              {address && (
+                <div className="flex items-center gap-3"><span className="text-xl">📍</span> {address}</div>
+              )}
             </div>
 
-            <div className="mt-8">
-              <WhatsAppButton phone={phone} size="lg">Contactar por WhatsApp</WhatsAppButton>
-            </div>
+            {wa && (
+              <div className="mt-8">
+                <WhatsAppButton phone={wa} size="lg">Contactar por WhatsApp</WhatsAppButton>
+              </div>
+            )}
           </div>
           <div className="bg-white p-10 lg:p-14">
             <h2 className="text-2xl font-bold text-slate-900">Envíanos un mensaje</h2>
             <p className="text-sm text-slate-500 mt-1 mb-6">Completa el formulario y te contactamos pronto.</p>
-            <ContactForm phone={phone} />
+            <ContactForm phone={wa || undefined} />
           </div>
         </div>
       </div>
