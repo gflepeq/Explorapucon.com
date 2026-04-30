@@ -3,6 +3,7 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import WhatsAppFab from "./components/WhatsAppFab";
 import ScrollToTop from "./components/ScrollToTop";
+import ErrorBoundary from "./components/ErrorBoundary";
 import HomePage from "./pages/HomePage";
 import ServicesPage from "./pages/ServicesPage";
 import CategoryPage from "./pages/CategoryPage";

@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Auth } from "../../data/store";
 import { isSupabaseConfigured, getSupabaseUrl, clearSupabaseCredentials } from "../../lib/supabase";
-import SiteLogo from "../../components/SiteLogo";
 
 export default function AdminLogin() {
   const [email, setEmail] = useState("");
